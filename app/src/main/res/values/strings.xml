@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">SpendLog</string>
+    <string name="add_expense">Add expense</string>
+    <string name="expense_detail">Expense</string>
+</resources>

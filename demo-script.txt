@@ -1,0 +1,27 @@
+SpendLog — five-minute demonstration script
+Haorong Song, 3184339
+Read this while the screen recording is running. Aim for about five minutes. Export the recording as mp4, then put it in the Moodle zip next to src.zip and the design document.
+
+0:00  Open
+This is SpendLog, my Milestone 1 build. It is the expense list from the proposal. I write down a payment when I make it: a name, an amount, a category, a date, a note, and where I was. There is no login and no chart. The point of this milestone is three screens, real interaction, an explicit intent and an implicit intent.
+
+0:40  Home
+This is MainActivity. It is its own activity, not a composable swapped inside one host. The card is what I have spent this month. The list underneath is every expense, newest first. Name on the left, amount on the right. These first rows are sample data, inserted once when the database is created. Coffee has a location. The bus ticket does not, and I will use that in a minute.
+
+1:20  Explicit intent, add
+The add button builds an Intent for AddExpenseActivity and starts that activity. I am not calling setContent on the home screen again. I will add a sandwich. Name, amount, category Food, today's date, a short note. Saving asks for location. I allow it. The toast says Saved when a fix was written. Back on the list, the new row is at the top and the month total has gone up.
+
+2:30  Explicit intent, open and edit
+Tapping the row starts ExpenseDetailActivity and passes the row id as an extra. This page only loads that one row. Edit starts AddExpenseActivity again, this time with the id, so the fields are already filled and Save updates the same row instead of inserting a second one. I change the amount and save.
+
+3:20  Delete
+Delete does not remove the row on the first tap. It asks, and the dialog names the expense. I cancel once, then I delete a different sample row for real. The list no longer has it.
+
+3:50  Implicit intent
+Open in Maps on Coffee does not name a maps package. It is ACTION_VIEW with a geo uri from the stored latitude and longitude. Android hands that to whatever maps app can handle it. The bus ticket has null coordinates, so that button does not launch an intent. The toast says there is no location saved.
+
+4:20  Permission refused
+I add one more row and deny location. The row is still stored. On its detail page the location says Not saved, and Open in Maps will not run for it. That was the sensor rule in the proposal: read once on save, and keep the expense if the answer is no.
+
+4:45  Close
+Storage is one SQLite table on the phone. The three layouts are the list, the form, and this detail page. The jumps inside the app are explicit. The only implicit intent is Open in Maps.
