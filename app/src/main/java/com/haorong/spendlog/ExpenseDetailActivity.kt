@@ -1,6 +1,4 @@
 // Haorong Song  3184339
-// One expense. Edit is an explicit intent back to the form.
-// Open in Maps is an implicit ACTION_VIEW on a geo: uri.
 
 package com.haorong.spendlog
 
@@ -104,19 +102,12 @@ class ExpenseDetailActivity : ComponentActivity() {
 
     private fun deleteAndClose() {
         repository.delete(expenseId)
-        Toast.makeText(this, "Deleted", Toast.LENGTH_SHORT).show()
         finish()
     }
 
     private fun openMaps(row: Expense) {
-        val latitude = row.latitude
-        val longitude = row.longitude
-        if (latitude == null || longitude == null) {
-            Toast.makeText(this, "No location saved for this expense", Toast.LENGTH_SHORT).show()
-            return
-        }
-        val label = Uri.encode(row.name)
-        val uri = Uri.parse("geo:$latitude,$longitude?q=$latitude,$longitude($label)")
+        // implicit: don't name a maps app, let the system pick one
+        val uri = Uri.parse("geo:0,0?q=" + Uri.encode(row.name))
         val intent = Intent(Intent.ACTION_VIEW, uri)
         try {
             startActivity(intent)
@@ -167,8 +158,7 @@ private fun DetailScreen(
             ) {
                 DetailLine("Category", categoryLabel(expense.category))
                 DetailLine("Date", formatDate(expense.date))
-                DetailLine("Note", expense.note.ifBlank { "—" })
-                DetailLine("Location", formatLocation(expense.latitude, expense.longitude))
+                DetailLine("Note", if (expense.note.isBlank()) "none" else expense.note)
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),

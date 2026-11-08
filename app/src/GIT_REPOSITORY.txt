@@ -1,11 +1,3 @@
-SpendLog
-Haorong Song
-Student ID: 3184339
+Git repository:
 
-Git repository
-The Android project is the SpendLog folder. It is a local git repository.
-A remote URL has not been published from this machine.
-
-Put the GitHub or GitLab URL on the line below before uploading to Moodle.
-
-REMOTE_URL=
+(put the GitHub or GitLab URL here before uploading)

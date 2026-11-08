@@ -7,8 +7,6 @@ data class Expense(
     val category: String,
     val date: String,
     val note: String,
-    val latitude: Double?,
-    val longitude: Double?,
 )
 
 val CATEGORIES = listOf(

@@ -1,6 +1,4 @@
 // Haorong Song  3184339
-// SpendLog home. Opens the list, and starts the other two activities
-// with an explicit intent.
 
 package com.haorong.spendlog
 
@@ -35,7 +33,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import java.time.LocalDate
 
 class MainActivity : ComponentActivity() {
     private val repository by lazy { ExpenseRepository(this) }
@@ -66,9 +63,8 @@ class MainActivity : ComponentActivity() {
 
     private fun reload() {
         val rows = repository.all()
-        val today = LocalDate.now()
         expenses = rows
-        monthTotal = rows.filter { isInMonth(it.date, today) }.sumOf { it.amount }
+        monthTotal = rows.filter { isInMonth(it.date) }.sumOf { it.amount }
     }
 
     private fun openAdd() {
@@ -101,11 +97,7 @@ private fun HomeScreen(
                     text = "SpendLog",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = "What I paid for, newest first.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
+                    modifier = Modifier.padding(bottom = 16.dp),
                 )
                 Column(
                     modifier = Modifier
@@ -144,7 +136,7 @@ private fun HomeScreen(
 
             if (expenses.isEmpty()) {
                 Text(
-                    text = "Nothing here yet. Add an expense when you pay.",
+                    text = "No expenses yet.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 20.dp),
                 )
