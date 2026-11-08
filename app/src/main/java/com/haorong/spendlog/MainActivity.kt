@@ -1,4 +1,6 @@
 // Haorong Song  3184339
+// home: month total + list
+// explicit intent -> add page, and -> detail page
 
 package com.haorong.spendlog
 
@@ -6,51 +8,55 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import java.time.LocalDate
 
 class MainActivity : ComponentActivity() {
-    private val repository by lazy { ExpenseRepository(this) }
-    private var expenses by mutableStateOf<List<Expense>>(emptyList())
+
+    private lateinit var db: ExpenseDb
+    private var rows by mutableStateOf(ArrayList<Expense>())
     private var monthTotal by mutableStateOf(0.0)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        reload()
+        db = ExpenseDb(this)
+        load()
         setContent {
             SpendLogTheme {
-                HomeScreen(
-                    expenses = expenses,
+                HomePage(
+                    rows = rows,
                     monthTotal = monthTotal,
-                    monthTitle = currentMonthTitle(),
-                    onAdd = { openAdd() },
-                    onOpen = { openDetail(it) },
+                    onAdd = {
+                        // explicit
+                        val intent = Intent(this, AddExpenseActivity::class.java)
+                        startActivity(intent)
+                    },
+                    onOpen = { id ->
+                        // explicit, pass which row
+                        val intent = Intent(this, ExpenseDetailActivity::class.java)
+                        intent.putExtra("expense_id", id)
+                        startActivity(intent)
+                    },
                 )
             }
         }
@@ -58,127 +64,90 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        reload()
+        load()
     }
 
-    private fun reload() {
-        val rows = repository.all()
-        expenses = rows
-        monthTotal = rows.filter { isInMonth(it.date) }.sumOf { it.amount }
-    }
-
-    private fun openAdd() {
-        startActivity(Intent(this, AddExpenseActivity::class.java))
-    }
-
-    private fun openDetail(id: Long) {
-        val intent = Intent(this, ExpenseDetailActivity::class.java)
-        intent.putExtra(ExpenseDetailActivity.EXTRA_ID, id)
-        startActivity(intent)
+    private fun load() {
+        rows = db.getAll()
+        val today = LocalDate.now()
+        val prefix = today.year.toString() + "-" + String.format("%02d", today.monthValue)
+        var total = 0.0
+        for (i in rows.indices) {
+            if (rows[i].date.startsWith(prefix)) {
+                total = total + rows[i].amount
+            }
+        }
+        monthTotal = total
     }
 }
 
 @Composable
-private fun HomeScreen(
-    expenses: List<Expense>,
+private fun HomePage(
+    rows: ArrayList<Expense>,
     monthTotal: Double,
-    monthTitle: String,
     onAdd: () -> Unit,
     onOpen: (Long) -> Unit,
 ) {
-    Scaffold(containerColor = MaterialTheme.colorScheme.background) { innerPadding ->
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+    ) {
+        Text(text = "SpendLog", fontSize = 28.sp, modifier = Modifier.padding(bottom = 12.dp))
+
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.primary)
+                .padding(16.dp),
         ) {
-            Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
-                Text(
-                    text = "SpendLog",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(bottom = 16.dp),
-                )
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.primary, MaterialTheme.shapes.large)
-                        .padding(18.dp),
-                ) {
-                    Text(
-                        text = "Spent this month",
-                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
-                    )
-                    Text(
-                        text = monthTitle,
-                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
-                        fontSize = 13.sp,
-                    )
-                    Text(
-                        text = formatMoney(monthTotal),
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        fontSize = 36.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(top = 6.dp, bottom = 14.dp),
-                    )
-                    Button(
-                        onClick = onAdd,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.White,
-                            contentColor = MaterialTheme.colorScheme.primary,
-                        ),
-                    ) {
-                        Text("Add expense")
-                    }
-                }
-            }
-
-            if (expenses.isEmpty()) {
-                Text(
-                    text = "No expenses yet.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 20.dp),
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 28.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    items(expenses, key = { it.id }) { expense ->
-                        ExpenseRow(expense = expense, onOpen = { onOpen(expense.id) })
-                    }
-                }
+            Text(text = "Spent this month", color = Color.White)
+            Text(
+                text = euro(monthTotal),
+                color = Color.White,
+                fontSize = 34.sp,
+                modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
+            )
+            Button(
+                onClick = onAdd,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.White,
+                    contentColor = MaterialTheme.colorScheme.primary,
+                ),
+            ) {
+                Text("Add expense")
             }
         }
-    }
-}
 
-@Composable
-private fun ExpenseRow(expense: Expense, onOpen: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface, MaterialTheme.shapes.medium)
-            .clickable(onClick = onOpen)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = expense.name, fontWeight = FontWeight.Medium, fontSize = 17.sp)
+        if (rows.size == 0) {
             Text(
-                text = categoryLabel(expense.category) + "  ·  " + formatDate(expense.date),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 13.sp,
-                modifier = Modifier.padding(top = 2.dp),
+                text = "No expenses yet.",
+                modifier = Modifier.padding(top = 16.dp),
             )
         }
-        Text(
-            text = formatMoney(expense.amount),
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.primary,
-            fontSize = 16.sp,
-        )
+
+        for (i in rows.indices) {
+            val row = rows[i]
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp)
+                    .background(Color.White)
+                    .clickable { onOpen(row.id) }
+                    .padding(12.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(text = row.name, fontSize = 18.sp)
+                    Text(
+                        text = categoryName(row.category) + "  " + showDate(row.date),
+                        fontSize = 13.sp,
+                    )
+                }
+                Text(text = euro(row.amount), fontSize = 16.sp)
+            }
+        }
     }
 }

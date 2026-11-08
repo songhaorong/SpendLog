@@ -1,21 +1,35 @@
 package com.haorong.spendlog
 
+// one row in the table
 data class Expense(
-    val id: Long,
-    val name: String,
-    val amount: Double,
-    val category: String,
-    val date: String,
-    val note: String,
+    var id: Long,
+    var name: String,
+    var amount: Double,
+    var category: String,
+    var date: String,
+    var note: String,
 )
 
-val CATEGORIES = listOf(
-    "food" to "Food",
-    "transport" to "Transport",
-    "shopping" to "Shopping",
-    "other" to "Other",
-)
+fun euro(n: Double): String {
+    return "€" + String.format(java.util.Locale.US, "%.2f", n)
+}
 
-fun categoryLabel(value: String): String {
-    return CATEGORIES.firstOrNull { it.first == value }?.second ?: value
+// 2026-11-07 -> 7 Nov 2026
+fun showDate(iso: String): String {
+    val p = iso.split("-")
+    val months = arrayOf(
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    )
+    val day = p[2].toInt()
+    val month = months[p[1].toInt() - 1]
+    return day.toString() + " " + month + " " + p[0]
+}
+
+fun categoryName(value: String): String {
+    if (value == "food") return "Food"
+    if (value == "transport") return "Transport"
+    if (value == "shopping") return "Shopping"
+    if (value == "other") return "Other"
+    return value
 }

@@ -1,4 +1,6 @@
 // Haorong Song  3184339
+// one expense
+// edit is explicit, open in maps is implicit
 
 package com.haorong.spendlog
 
@@ -9,19 +11,14 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -29,54 +26,54 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 class ExpenseDetailActivity : ComponentActivity() {
-    private val repository by lazy { ExpenseRepository(this) }
-    private var expenseId: Long = -1L
-    private var expense by mutableStateOf<Expense?>(null)
-    private var askDelete by mutableStateOf(false)
+
+    private lateinit var db: ExpenseDb
+    private var expenseId: Long = -1
+    private var row by mutableStateOf<Expense?>(null)
+    private var ask by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        expenseId = intent.getLongExtra(EXTRA_ID, -1L)
-        expense = repository.get(expenseId)
-        if (expenseId < 0L || expense == null) {
+        db = ExpenseDb(this)
+        expenseId = intent.getLongExtra("expense_id", -1)
+        if (expenseId < 0) {
             finish()
             return
         }
         setContent {
             SpendLogTheme {
-                val row = expense
-                if (row == null) {
-                    Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
-                        Text(
-                            text = "Loading…",
-                            modifier = Modifier.padding(padding).padding(20.dp),
-                        )
-                    }
-                } else {
-                    DetailScreen(
-                        expense = row,
-                        onBack = { finish() },
-                        onEdit = { openEdit(row.id) },
-                        onDelete = { askDelete = true },
-                        onMaps = { openMaps(row) },
+                val item = row
+                if (item != null) {
+                    DetailPage(
+                        item = item,
+                        onClose = { finish() },
+                        onEdit = {
+                            val intent = Intent(this, AddExpenseActivity::class.java)
+                            intent.putExtra("expense_id", item.id)
+                            startActivity(intent)
+                        },
+                        onDelete = { ask = true },
+                        onMaps = { openMaps(item) },
                     )
                 }
-                if (askDelete && row != null) {
+                if (ask && item != null) {
                     AlertDialog(
-                        onDismissRequest = { askDelete = false },
-                        title = { Text("Delete this expense?") },
-                        text = { Text("This removes ${row.name} from the list.") },
+                        onDismissRequest = { ask = false },
+                        title = { Text("Delete " + item.name + "?") },
+                        text = { Text("This takes it off the list.") },
                         confirmButton = {
-                            TextButton(onClick = { deleteAndClose() }) { Text("Delete") }
+                            TextButton(onClick = {
+                                db.delete(expenseId)
+                                finish()
+                            }) { Text("Delete") }
                         },
                         dismissButton = {
-                            TextButton(onClick = { askDelete = false }) { Text("Cancel") }
+                            TextButton(onClick = { ask = false }) { Text("Cancel") }
                         },
                     )
                 }
@@ -86,106 +83,77 @@ class ExpenseDetailActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        val row = repository.get(expenseId)
-        if (row == null) {
+        val found = db.getOne(expenseId)
+        if (found == null) {
             finish()
             return
         }
-        expense = row
+        row = found
     }
 
-    private fun openEdit(id: Long) {
-        val intent = Intent(this, AddExpenseActivity::class.java)
-        intent.putExtra(AddExpenseActivity.EXTRA_ID, id)
-        startActivity(intent)
-    }
-
-    private fun deleteAndClose() {
-        repository.delete(expenseId)
-        finish()
-    }
-
-    private fun openMaps(row: Expense) {
-        // implicit: don't name a maps app, let the system pick one
-        val uri = Uri.parse("geo:0,0?q=" + Uri.encode(row.name))
+    private fun openMaps(item: Expense) {
+        // implicit, don't set a package
+        val uri = Uri.parse("geo:0,0?q=" + Uri.encode(item.name))
         val intent = Intent(Intent.ACTION_VIEW, uri)
         try {
             startActivity(intent)
-        } catch (_: ActivityNotFoundException) {
+        } catch (e: ActivityNotFoundException) {
             Toast.makeText(this, "no maps app", Toast.LENGTH_SHORT).show()
         }
-    }
-
-    companion object {
-        const val EXTRA_ID = "expense_id"
     }
 }
 
 @Composable
-private fun DetailScreen(
-    expense: Expense,
-    onBack: () -> Unit,
+private fun DetailPage(
+    item: Expense,
+    onClose: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onMaps: () -> Unit,
 ) {
-    Scaffold(containerColor = MaterialTheme.colorScheme.background) { innerPadding ->
+    Column(modifier = Modifier.padding(16.dp)) {
+        TextButton(onClick = onClose) { Text("Close") }
+        Text(text = item.name, fontSize = 28.sp)
+        Text(text = euro(item.amount), fontSize = 36.sp, modifier = Modifier.padding(bottom = 12.dp))
+
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+                .fillMaxWidth()
+                .background(Color.White)
+                .padding(12.dp),
         ) {
-            TextButton(onClick = onBack) { Text("Close") }
-            Text(
-                text = expense.name,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = formatMoney(expense.amount),
-                color = MaterialTheme.colorScheme.primary,
-                fontSize = 40.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surface, MaterialTheme.shapes.large)
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                DetailLine("Category", categoryLabel(expense.category))
-                DetailLine("Date", formatDate(expense.date))
-                DetailLine("Note", if (expense.note.isBlank()) "none" else expense.note)
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                OutlinedButton(onClick = onEdit, modifier = Modifier.weight(1f)) {
-                    Text("Edit")
-                }
-                OutlinedButton(onClick = onDelete, modifier = Modifier.weight(1f)) {
-                    Text("Delete")
-                }
-            }
-            Button(onClick = onMaps, modifier = Modifier.fillMaxWidth()) {
-                Text("Open in Maps")
+            Text(text = "Category", fontSize = 13.sp)
+            Text(text = categoryName(item.category), fontSize = 18.sp, modifier = Modifier.padding(bottom = 8.dp))
+            Text(text = "Date", fontSize = 13.sp)
+            Text(text = showDate(item.date), fontSize = 18.sp, modifier = Modifier.padding(bottom = 8.dp))
+            Text(text = "Note", fontSize = 13.sp)
+            if (item.note == "") {
+                Text(text = "none", fontSize = 18.sp)
+            } else {
+                Text(text = item.note, fontSize = 18.sp)
             }
         }
-    }
-}
 
-@Composable
-private fun DetailLine(label: String, value: String) {
-    Column {
-        Text(
-            text = label,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 13.sp,
-        )
-        Text(text = value, fontSize = 17.sp)
+        Row(modifier = Modifier.padding(top = 12.dp)) {
+            OutlinedButton(onClick = onEdit, modifier = Modifier.weight(1f)) {
+                Text("Edit")
+            }
+            OutlinedButton(
+                onClick = onDelete,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 8.dp),
+            ) {
+                Text("Delete")
+            }
+        }
+        Button(
+            onClick = onMaps,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+        ) {
+            Text("Open in Maps")
+        }
     }
 }
